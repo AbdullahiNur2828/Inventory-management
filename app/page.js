@@ -103,22 +103,22 @@ export default function Home() {
     item.name.toLowerCase().startsWith(searchQuery.toLowerCase())
   );
 
-  const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Error signing in with Google:", error);
-    }
-  };
+  // const signInWithGoogle = async () => {
+  //   const provider = new GoogleAuthProvider();
+  //   try {
+  //     await signInWithPopup(auth, provider);
+  //   } catch (error) {
+  //     console.error("Error signing in with Google:", error);
+  //   }
+  // };
 
-  const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
-  };
+  // const handleSignOut = async () => {
+  //   try {
+  //     await signOut(auth);
+  //   } catch (error) {
+  //     console.error("Error signing out:", error);
+  //   }
+  // };
 
 
   return(
@@ -133,7 +133,7 @@ export default function Home() {
       alignItems={"center"}
       gap={2}
     >
-      {user ? (
+      {/* {user ? (
         <>
           <Typography variant="h3">Welcome, {user.displayName}</Typography>
           <Button variant="contained"  onClick={handleSignOut}>
@@ -147,7 +147,7 @@ export default function Home() {
       )}
 
       {user && (
-        <>
+        <> */}
        {/* Search Bar */}
       
 
@@ -280,8 +280,8 @@ export default function Home() {
 
       </Stack>
       </Box>
-      </>
-     )}
+      {/* </> */}
+     {/* )} */}
     </Box>
   );
 }
