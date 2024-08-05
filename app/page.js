@@ -1,11 +1,13 @@
 'use client'
 import { Box, Button, Modal, Stack, TextField, Typography, Slide, Autocomplete } from "@mui/material";
 
-import Image from "next/image";
+
 import { useState, useEffect } from "react";
 import { firestore } from "./firebase";
 import { collection, doc, getDoc, getDocs, query, setDoc, deleteDoc } from "firebase/firestore";
-import { ST } from "next/dist/shared/lib/utils";
+import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'; // Import from firebase/auth
+import { auth } from './firebase'; // Ensure correct import of auth
+import { signOut, useSession } from "firebase/auth"; //idk if i should use this or "next-auth/react"
 //const item = ["tomato", "patato", "garlic", "ginger", "carrot", "lettuce"]
 export default function Home() {
   const [inventory, setInventory] = useState([])  // State for storing inventory items, initially an empty array
@@ -13,7 +15,10 @@ export default function Home() {
   const [itemName, setItemName] = useState([''])  // State for storing an item name, initially an empty string
   const [searchOpen, setSearchOpen] = useState(false);  // State for tracking search panel open/closed status
   const [searchQuery, setSearchQuery] = useState('');  // State for storing the search query  
+  const [newItemName, setNewItemName] = useState('');  
+
   const [foodItems, setFoodItems] = useState([]);  // State for storing food items with images
+  const [user, setUser] = useState(null);  // State for storing the authenticated user
 
   useEffect(() => {
     const fetchFoodItems = async () => {
@@ -82,10 +87,13 @@ export default function Home() {
     await updateInventory()
   }
 
-  useEffect(()=>{
-    updateInventory()
-
-  }, [])
+  useEffect(() => {
+    updateInventory();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleOpen = () => setOpen(true)
   const handleClose = () => setOpen(false)
@@ -95,81 +103,67 @@ export default function Home() {
     item.name.toLowerCase().startsWith(searchQuery.toLowerCase())
   );
 
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Error signing in with Google:", error);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
+
   return(
     <Box
+      
+      bgcolor="#e3faea"
       width="100vw" 
       height="100vh"
       display={"flex"}
       flexDirection="column"
-      justifyContent={"center"}
+      justifyContent="center"
       alignItems={"center"}
       gap={2}
     >
-      {/* Modal is a component that creates a dialog box or overlay that appears on top of the current content. 
-      It’s used to display content in a focused and interactive way, often for tasks like: showing Alerts or Confirmations:*/}
-      {/* <Modal
-        open = {open}
-        onClose={handleClose}>
-          <Box
-          position='absolute' top="50%" left='50%'
-          // transform='translate(-50%,-50%)'   this didnt work, variable not supported use sx
-          width={400}
-          bgcolor="white"
-          border="2xp solid #000"
-          boxShadow={24}
-          p={4}
-          display="flex"
-          flexDirection="column"
-          gap={3}
-          sx={{
-            transform: 'translate(-50%,-50%)'
-          }}
+      {user ? (
+        <>
+          <Typography variant="h3">Welcome, {user.displayName}</Typography>
+          <Button variant="contained"  onClick={handleSignOut}>
+            Sign Out
+          </Button>
+        </>
+      ) : (
+        <Button variant="contained" onClick={signInWithGoogle}>
+          Sign in with Google
+        </Button>
+      )}
 
-          >
-            <Typography variant = "h6" color="black">Add Item</Typography>
-            <Stack width="100%" direction = "row" spacing={2}>
-              <TextField
-              variant="outlined"
-              fullWidth
-              valie = {itemName}
-              onChange={(e)=>{
-                setItemName(e.target.value)
-              }}
-
-              />
-              <Button variant="outlined" onClick={()=> {
-                addItem(itemName)
-                setItemName('')
-                handleClose()
-              }}>add</Button>
-
-            </Stack>
-          </Box>
-
-      </Modal> */}
+      {user && (
+        <>
        {/* Search Bar */}
-      <TextField
-        variant="outlined"
-        placeholder="Search items..."
-        fullWidth
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        sx={{ mb: 2 }}
-      />
+      
 
       <Button variant="contained" color="secondary" onClick={handleSearchOpen}>
         Add/Search Items
       </Button>
 
-      <Slide direction="up" in={searchOpen} mountOnEnter unmountOnExit>
+      <Slide direction="right" in={searchOpen} mountOnEnter unmountOnExit>
         <Box
           sx={{
             position: 'fixed',
             bottom: 0,
             left: 0,
-            width: '100%',
-            height: '50%',
-            bgcolor: 'background.paper',
+            width: '25%',
+            height: '100%',
+            bgcolor: '#ddf0e2',
             boxShadow: 24,
             p: 4,
             display: 'flex',
@@ -195,8 +189,8 @@ export default function Home() {
             onChange={(e) => setItemName(e.target.value)}
           /> */}
           <Button variant="contained" onClick={() => {
-            addItem(itemName);
-            setItemName('');
+            addItem(newItemName);
+            setNewItemName('');
           }}>
             Add Item
           </Button>
@@ -212,9 +206,9 @@ export default function Home() {
                 variant="outlined"
                 fullWidth
                 placeholder="Enter item name to add..."
-                value={itemName}
+                value={newItemName}
                 onChange={(e) => {
-                  setItemName(e.target.value);
+                  setNewItemName(e.target.value);
                   setSearchQuery(e.target.value); // Update searchQuery to filter items
                 }}
               />
@@ -223,18 +217,24 @@ export default function Home() {
 
         </Box>
       </Slide>
+      
 
-
-      <Button variant="contained" onClick={()=>{
-        handleOpen()
-      }}>
-        Add New Item
-      </Button>
-      <Box border='1px solid #333'>
+      
+      <Box border='1px solid #333' sx={{ borderRadius: '16px' }}>
+      <TextField
+        variant="filled"
+        color="secondary"
+        bgcolor = "#000"
+        placeholder="Search items..."
+        fullWidth
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        sx={{ mb: 2 }}
+      />
         <Box 
           width="800px" 
           height= "100px" 
-          bgcolor="#ADD8E6" 
+          bgcolor="#5ba670" 
           display="flex" 
           alignItems="center" 
           justifyContent="center"
@@ -249,14 +249,16 @@ export default function Home() {
         spacing={2}
         overflow="auto"      
       >
+        
         {
           filteredInventory.map(({name, quantity})=>(
             <Box key={name} width="100%"
+            sx={{ borderRadius: '16px' }}
             minHeight="150px"
             display="flex"
             alignItems="center"
             justifyContent="space-between" //instead of having Boxes1 we have= Boxes   1 so quantity is on far right
-            bgcolor="#f0f0f0"
+            bgcolor="#a7c4af"
             padding={5}
             >
               <Typography variant="h3" color='#333' textAlign='center'
@@ -278,6 +280,8 @@ export default function Home() {
 
       </Stack>
       </Box>
+      </>
+     )}
     </Box>
   );
 }
